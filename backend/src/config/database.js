@@ -6,6 +6,9 @@ const pool = new Pool({
   database: process.env.DB_NAME || 'reservasi_db',
   user: process.env.DB_USER || 'reservasi_user',
   password: process.env.DB_PASSWORD || 'reservasi_pass',
+  ssl: process.env.DB_HOST && process.env.DB_HOST !== 'localhost'
+    ? { rejectUnauthorized: false }
+    : false,
 });
 
 pool.on('connect', () => {
