@@ -1,0 +1,196 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kelola Pesanan - Admin</title>
+  <link rel="stylesheet" href="/css/style.v2.css">
+  <style>
+    .filter-bar { display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center; margin-bottom:1rem; }
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:200; align-items:center; justify-content:center; padding:1rem; }
+    .modal-overlay.active { display:flex; }
+    .modal-box { background:var(--white); border-radius:var(--radius); box-shadow:var(--shadow-md); width:100%; max-width:600px; max-height:90vh; overflow-y:auto; }
+    .modal-header { padding:1rem 1.25rem; border-bottom:1px solid var(--border); font-weight:700; color:var(--primary-dark); display:flex; justify-content:space-between; align-items:center; background:linear-gradient(135deg,#f5f1fb,#fff); }
+    .modal-body { padding:1.25rem; }
+    .modal-footer { padding:0.75rem 1.25rem; border-top:1px solid var(--border); background:#faf8fd; display:flex; gap:0.5rem; justify-content:flex-end; }
+    .status-btn { padding:0.3rem 0.8rem; border-radius:6px; font-size:0.8rem; font-weight:600; border:2px solid transparent; cursor:pointer; transition:all 0.2s; }
+    .status-btn:hover { opacity:0.85; }
+    .status-confirmed { background:#e8e0f5; color:#4B3F6E; border-color:#9C8CB9; }
+    .status-completed { background:#e4f0ea; color:#2d5a3d; border-color:#a8cdb8; }
+    .status-cancelled { background:#fdf0f3; color:#7a2535; border-color:#e8b4bf; }
+    .info-grid { display:grid; grid-template-columns:1fr 1fr; gap:0.5rem 1.5rem; font-size:0.875rem; margin-bottom:1rem; }
+    .info-item label { color:var(--text-muted); font-size:0.78rem; text-transform:uppercase; letter-spacing:0.04em; }
+    .info-item p { font-weight:500; margin-top:0.1rem; }
+  </style>
+</head>
+<body>
+  <header class="navbar" id="navbar"></header>
+  <main class="container">
+    <div class="page-title">
+      <h1>📋 Kelola Semua Pesanan</h1>
+      <p>Lihat dan ubah status seluruh pesanan pelanggan</p>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="filter-bar">
+          <input type="text" id="search-input" class="form-control" placeholder="🔍 Cari no. pesanan / penerima..." style="max-width:260px">
+          <select id="status-filter" class="form-control" style="max-width:160px">
+            <option value="">Semua Status</option>
+            <option value="DRAFT">DRAFT</option>
+            <option value="CONFIRMED">CONFIRMED</option>
+            <option value="COMPLETED">COMPLETED</option>
+            <option value="CANCELLED">CANCELLED</option>
+          </select>
+          <span id="total-label" style="font-size:0.85rem;color:var(--text-muted);margin-left:auto"></span>
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="table">
+          <thead>
+            <tr><th>No. Pesanan</th><th>Pelanggan</th><th>Penerima</th><th>Total</th><th>Tanggal</th><th>Status</th><th>Aksi</th></tr>
+          </thead>
+          <tbody id="orders-tbody">
+            <tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted)">Memuat...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal Detail & Ubah Status -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span id="modal-order-number">Detail Pesanan</span>
+        <button class="btn btn-outline btn-sm" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+
+  <script src="/js/services/api.js"></script>
+  <script>
+    if (!api.isLoggedIn()) window.location.href = '/login.html';
+    if (api.getUser()?.role !== 'admin') window.location.href = '/products.html';
+
+    let allOrders = [];
+
+    async function init() {
+      renderNavbar();
+      await loadOrders();
+      document.getElementById('search-input').addEventListener('input', filterTable);
+      document.getElementById('status-filter').addEventListener('change', filterTable);
+    }
+
+    async function loadOrders() {
+      try {
+        const data = await api.getOrders();
+        allOrders = data.data;
+        renderTable(allOrders);
+      } catch (err) {
+        showToast('Gagal memuat pesanan: ' + err.message, 'error');
+      }
+    }
+
+    function filterTable() {
+      const search = document.getElementById('search-input').value.toLowerCase();
+      const status = document.getElementById('status-filter').value;
+      const filtered = allOrders.filter(o =>
+        (!search || o.order_number.toLowerCase().includes(search) || o.receiver_name.toLowerCase().includes(search) || (o.username||'').toLowerCase().includes(search)) &&
+        (!status || o.status === status)
+      );
+      renderTable(filtered);
+    }
+
+    function renderTable(orders) {
+      document.getElementById('total-label').textContent = `${orders.length} pesanan`;
+      const tbody = document.getElementById('orders-tbody');
+      if (!orders.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted)">Tidak ada pesanan ditemukan</td></tr>';
+        return;
+      }
+      tbody.innerHTML = orders.map(o => `
+        <tr>
+          <td><strong style="font-size:0.85rem">${o.order_number}</strong></td>
+          <td style="font-size:0.85rem">${o.username || '—'}<br><span style="color:var(--text-muted);font-size:0.78rem">${o.full_name || ''}</span></td>
+          <td>${o.receiver_name}</td>
+          <td style="font-weight:600;color:var(--primary)">${formatRupiah(o.total_price)}</td>
+          <td style="font-size:0.8rem;color:var(--text-muted)">${formatDate(o.created_at)}</td>
+          <td><span class="badge badge-${o.status.toLowerCase()}">${o.status}</span></td>
+          <td style="display:flex;gap:0.4rem;flex-wrap:wrap">
+            <button class="btn btn-outline btn-sm" onclick="viewOrder(${o.id})">🔍 Detail</button>
+            ${getAdminActions(o)}
+          </td>
+        </tr>`).join('');
+    }
+
+    function getAdminActions(o) {
+      if (o.status === 'DRAFT') return `
+        <button class="status-btn status-confirmed" onclick="changeStatus(${o.id},'CONFIRMED')">✓ Konfirmasi</button>
+        <button class="status-btn status-cancelled" onclick="changeStatus(${o.id},'CANCELLED')">✕ Batalkan</button>`;
+      if (o.status === 'CONFIRMED') return `
+        <button class="status-btn status-completed" onclick="changeStatus(${o.id},'COMPLETED')">✓ Selesaikan</button>
+        <button class="status-btn status-cancelled" onclick="changeStatus(${o.id},'CANCELLED')">✕ Batalkan</button>`;
+      return '';
+    }
+
+    async function viewOrder(id) {
+      try {
+        const data = await api.getOrder(id);
+        const o = data.data;
+        document.getElementById('modal-order-number').textContent = `📋 ${o.order_number}`;
+        document.getElementById('modal-body').innerHTML = `
+          <div class="info-grid">
+            <div class="info-item"><label>Status</label><p><span class="badge badge-${o.status.toLowerCase()}">${o.status}</span></p></div>
+            <div class="info-item"><label>Tanggal</label><p>${formatDate(o.created_at)}</p></div>
+            <div class="info-item"><label>Penerima</label><p>${o.receiver_name}</p></div>
+            <div class="info-item"><label>Telepon</label><p>${o.phone}</p></div>
+            <div class="info-item" style="grid-column:1/-1"><label>Alamat</label><p>${o.address}</p></div>
+            ${o.notes ? `<div class="info-item" style="grid-column:1/-1"><label>Catatan</label><p>${o.notes}</p></div>` : ''}
+          </div>
+          <table class="table" style="margin-bottom:1rem">
+            <thead><tr><th>Layanan</th><th>Qty</th><th>Harga</th><th>Subtotal</th></tr></thead>
+            <tbody>${o.items.map(i => `
+              <tr>
+                <td>${i.product_name}</td>
+                <td>${i.quantity}</td>
+                <td>${formatRupiah(i.product_price)}</td>
+                <td style="font-weight:600">${formatRupiah(i.subtotal)}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+          <div class="summary-row total"><span>Total Pembayaran</span><span>${formatRupiah(o.total_price)}</span></div>
+          ${o.status !== 'COMPLETED' && o.status !== 'CANCELLED' ? `
+          <div style="margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--border)">
+            <div style="font-size:0.85rem;font-weight:600;margin-bottom:0.6rem;color:var(--primary-dark)">Ubah Status:</div>
+            <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+              ${o.status === 'DRAFT' ? `<button class="status-btn status-confirmed" onclick="changeStatus(${o.id},'CONFIRMED');closeModal()">✓ Konfirmasi</button>` : ''}
+              ${o.status === 'CONFIRMED' ? `<button class="status-btn status-completed" onclick="changeStatus(${o.id},'COMPLETED');closeModal()">✓ Selesaikan</button>` : ''}
+              <button class="status-btn status-cancelled" onclick="changeStatus(${o.id},'CANCELLED');closeModal()">✕ Batalkan</button>
+            </div>
+          </div>` : ''}`;
+        document.getElementById('modal-overlay').classList.add('active');
+      } catch (err) {
+        showToast('Gagal memuat detail pesanan.', 'error');
+      }
+    }
+
+    function closeModal() { document.getElementById('modal-overlay').classList.remove('active'); }
+
+    async function changeStatus(id, status) {
+      const labels = { CONFIRMED: 'mengkonfirmasi', COMPLETED: 'menyelesaikan', CANCELLED: 'membatalkan' };
+      if (!confirm(`Yakin ingin ${labels[status]} pesanan ini?`)) return;
+      try {
+        await api.updateOrderStatus(id, status);
+        showToast(`Status berhasil diubah menjadi ${status}.`);
+        await loadOrders();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

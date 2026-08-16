@@ -1,0 +1,163 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pesanan Saya - Sistem Reservasi Layanan</title>
+  <link rel="stylesheet" href="/css/style.v2.css">
+</head>
+<body>
+  <header class="navbar" id="navbar"></header>
+
+  <main class="container">
+    <div class="page-title">
+      <h1>Pesanan Saya</h1>
+      <p>Riwayat dan status reservasi layanan Anda</p>
+    </div>
+    <div id="orders-container" data-testid="orders-container">
+      <div class="empty-state"><div class="spinner" style="margin:0 auto;border-color:rgba(0,0,0,0.1);border-top-color:var(--primary)"></div></div>
+    </div>
+  </main>
+
+  <!-- Modal Detail Pesanan -->
+  <div id="order-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;align-items:center;justify-content:center;padding:1rem">
+    <div class="card" style="width:100%;max-width:560px;max-height:90vh;overflow-y:auto">
+      <div class="card-header" style="display:flex;justify-content:space-between">
+        <span id="modal-order-number">Detail Pesanan</span>
+        <button class="btn btn-outline btn-sm" onclick="closeOrderModal()">âœ•</button>
+      </div>
+      <div class="card-body" id="modal-order-body"></div>
+    </div>
+  </div>
+
+  <script src="/js/services/api.js"></script>
+  <script>
+    if (!requireLogin()) {}
+
+    async function init() {
+      renderNavbar();
+      loadOrders();
+    }
+
+    async function loadOrders() {
+      try {
+        const data = await api.getOrders();
+        renderOrders(data.data);
+      } catch (err) {
+        document.getElementById('orders-container').innerHTML =
+          `<div class="alert alert-danger">Gagal memuat pesanan: ${err.message}</div>`;
+      }
+    }
+
+    function renderOrders(orders) {
+      const container = document.getElementById('orders-container');
+      if (!orders.length) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">ðŸ“‹</div>
+            <h3>Belum ada pesanan</h3>
+            <p>Mulai pesan layanan sekarang!</p>
+            <a href="/index.html" class="btn btn-primary" style="margin-top:1rem">Lihat Layanan</a>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="card">
+          <table class="table" data-testid="orders-table">
+            <thead>
+              <tr>
+                <th>No. Pesanan</th>
+                <th>Tanggal</th>
+                <th>Penerima</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${orders.map(order => `
+                <tr data-testid="order-row" data-order-id="${order.id}">
+                  <td><strong>${order.order_number}</strong></td>
+                  <td style="font-size:0.82rem">${formatDate(order.created_at)}</td>
+                  <td>${order.receiver_name}</td>
+                  <td>${formatRupiah(order.total_price)}</td>
+                  <td><span class="badge badge-${order.status.toLowerCase()}">${order.status}</span></td>
+                  <td style="display:flex;gap:0.4rem">
+                    <button class="btn btn-outline btn-sm" onclick="viewOrder(${order.id})" data-testid="view-order-btn">Detail</button>
+                    ${getStatusActions(order)}
+                  </td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`;
+    }
+
+    function getStatusActions(order) {
+      const actions = [];
+      if (order.status === 'DRAFT') {
+        actions.push(`<button class="btn btn-success btn-sm" onclick="changeStatus(${order.id},'CONFIRMED')" data-testid="confirm-btn">Konfirmasi</button>`);
+        actions.push(`<button class="btn btn-danger btn-sm" onclick="changeStatus(${order.id},'CANCELLED')" data-testid="cancel-btn">Batalkan</button>`);
+      }
+      if (order.status === 'CONFIRMED') {
+        actions.push(`<button class="btn btn-primary btn-sm" onclick="changeStatus(${order.id},'COMPLETED')" data-testid="complete-btn">Selesai</button>`);
+        actions.push(`<button class="btn btn-danger btn-sm" onclick="changeStatus(${order.id},'CANCELLED')" data-testid="cancel-btn">Batalkan</button>`);
+      }
+      return actions.join('');
+    }
+
+    async function viewOrder(id) {
+      try {
+        const data = await api.getOrder(id);
+        const order = data.data;
+        document.getElementById('modal-order-number').textContent = order.order_number;
+        document.getElementById('modal-order-body').innerHTML = `
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;font-size:0.875rem">
+            <div><strong>Status:</strong> <span class="badge badge-${order.status.toLowerCase()}">${order.status}</span></div>
+            <div><strong>Tanggal:</strong> ${formatDate(order.created_at)}</div>
+            <div><strong>Penerima:</strong> ${order.receiver_name}</div>
+            <div><strong>Telepon:</strong> ${order.phone}</div>
+          </div>
+          <div style="margin-bottom:1rem;font-size:0.875rem"><strong>Alamat:</strong> ${order.address}</div>
+          ${order.notes ? `<div style="margin-bottom:1rem;font-size:0.875rem"><strong>Catatan:</strong> ${order.notes}</div>` : ''}
+          <table class="table">
+            <thead><tr><th>Layanan</th><th>Qty</th><th>Harga</th><th>Subtotal</th></tr></thead>
+            <tbody>
+              ${order.items.map(i => `
+                <tr>
+                  <td>${i.product_name}</td>
+                  <td>${i.quantity}</td>
+                  <td>${formatRupiah(i.product_price)}</td>
+                  <td>${formatRupiah(i.subtotal)}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+          <div class="summary-row total" style="padding:0.75rem 0 0">
+            <span>Total</span><span>${formatRupiah(order.total_price)}</span>
+          </div>`;
+        document.getElementById('order-modal').style.display = 'flex';
+      } catch (err) {
+        showToast('Gagal memuat detail pesanan.', 'error');
+      }
+    }
+
+    function closeOrderModal() {
+      document.getElementById('order-modal').style.display = 'none';
+    }
+
+    async function changeStatus(id, status) {
+      const labels = { CONFIRMED: 'mengkonfirmasi', COMPLETED: 'menyelesaikan', CANCELLED: 'membatalkan' };
+      if (!confirm(`Apakah Anda yakin ingin ${labels[status]} pesanan ini?`)) return;
+      try {
+        await api.updateOrderStatus(id, status);
+        showToast(`Pesanan berhasil diubah menjadi ${status}.`);
+        loadOrders();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

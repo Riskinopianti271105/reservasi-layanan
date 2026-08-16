@@ -1,0 +1,36 @@
+﻿{
+    "values":  [
+                   {
+                       "key":  "baseUrl",
+                       "value":  "http://reservasi_backend:3000",
+                       "enabled":  true
+                   },
+                   {
+                       "key":  "token",
+                       "value":  null,
+                       "enabled":  true
+                   },
+                   {
+                       "key":  "productId",
+                       "value":  "1",
+                       "enabled":  true
+                   },
+                   {
+                       "key":  "orderId",
+                       "value":  "3",
+                       "enabled":  true
+                   },
+                   {
+                       "key":  "completedOrderId",
+                       "value":  "4",
+                       "enabled":  true
+                   },
+                   {
+                       "key":  "deleteProductId",
+                       "value":  "",
+                       "enabled":  true
+                   }
+               ],
+    "name":  "Reservasi Layanan - Local Environment",
+    "id":  "reservasi-environment"
+}

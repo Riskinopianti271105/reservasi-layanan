@@ -1,0 +1,164 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Admin - Sistem Reservasi Layanan</title>
+  <link rel="stylesheet" href="/css/style.v2.css">
+  <style>
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .stat-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      box-shadow: var(--shadow);
+      display: flex; flex-direction: column; gap: 0.4rem;
+    }
+    .stat-label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+    .stat-value { font-size: 2rem; font-weight: 700; color: var(--primary-dark); }
+    .stat-sub { font-size: 0.8rem; color: var(--text-muted); }
+    .stat-card.purple { border-top: 3px solid #4B3F6E; }
+    .stat-card.violet { border-top: 3px solid #6C5F8D; }
+    .stat-card.pink { border-top: 3px solid #BA96C1; }
+    .stat-card.gray { border-top: 3px solid #9C8CB9; }
+    .stat-card.green { border-top: 3px solid var(--success); }
+    .stat-card.red { border-top: 3px solid var(--danger); }
+    .admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    @media(max-width:768px){ .admin-grid { grid-template-columns: 1fr; } }
+    .quick-link {
+      display: flex; align-items: center; gap: 1rem;
+      padding: 1rem 1.25rem;
+      border-radius: var(--radius);
+      background: var(--primary-light);
+      text-decoration: none;
+      color: var(--primary-dark);
+      font-weight: 600;
+      transition: all 0.2s;
+      border: 1px solid var(--border);
+    }
+    .quick-link:hover { background: var(--primary); color: #fff; transform: translateX(4px); }
+    .quick-link .icon { font-size: 1.5rem; }
+    .quick-links { display: flex; flex-direction: column; gap: 0.75rem; }
+  </style>
+</head>
+<body>
+  <header class="navbar" id="navbar"></header>
+  <main class="container">
+    <div class="page-title">
+      <h1>⚙️ Dashboard Admin</h1>
+      <p>Selamat datang di panel administrasi Sistem Reservasi Layanan</p>
+    </div>
+
+    <div class="stats-grid" id="stats-grid">
+      <div class="stat-card purple">
+        <div class="stat-label">Total Layanan</div>
+        <div class="stat-value" id="stat-products">—</div>
+        <div class="stat-sub">layanan aktif</div>
+      </div>
+      <div class="stat-card violet">
+        <div class="stat-label">Total Pengguna</div>
+        <div class="stat-value" id="stat-users">—</div>
+        <div class="stat-sub">terdaftar</div>
+      </div>
+      <div class="stat-card pink">
+        <div class="stat-label">Total Pesanan</div>
+        <div class="stat-value" id="stat-orders">—</div>
+        <div class="stat-sub">semua status</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-label">Pesanan Selesai</div>
+        <div class="stat-value" id="stat-completed">—</div>
+        <div class="stat-sub">COMPLETED</div>
+      </div>
+      <div class="stat-card gray">
+        <div class="stat-label">Menunggu</div>
+        <div class="stat-value" id="stat-draft">—</div>
+        <div class="stat-sub">DRAFT</div>
+      </div>
+      <div class="stat-card red">
+        <div class="stat-label">Dibatalkan</div>
+        <div class="stat-value" id="stat-cancelled">—</div>
+        <div class="stat-sub">CANCELLED</div>
+      </div>
+    </div>
+
+    <div class="admin-grid">
+      <div class="card">
+        <div class="card-header">📌 Akses Cepat</div>
+        <div class="card-body">
+          <div class="quick-links">
+            <a href="/admin-products.html" class="quick-link"><span class="icon">📦</span><span>Kelola Layanan / Produk</span></a>
+            <a href="/admin-orders.html" class="quick-link"><span class="icon">📋</span><span>Kelola Semua Pesanan</span></a>
+            <a href="/products.html" class="quick-link"><span class="icon">🛍️</span><span>Lihat Halaman Layanan (User)</span></a>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">🕐 Pesanan Terbaru</div>
+        <div class="card-body" style="padding:0">
+          <table class="table" id="recent-orders-table">
+            <thead><tr><th>No. Pesanan</th><th>Penerima</th><th>Total</th><th>Status</th></tr></thead>
+            <tbody id="recent-orders-body">
+              <tr><td colspan="4" style="text-align:center;padding:1.5rem;color:var(--text-muted)">Memuat...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card-footer">
+          <a href="/admin-orders.html" class="btn btn-outline btn-sm">Lihat Semua Pesanan →</a>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="/js/services/api.js"></script>
+  <script>
+    // Hanya admin yang boleh akses
+    if (!api.isLoggedIn()) { window.location.href = '/login.html'; }
+    const user = api.getUser();
+    if (user && user.role !== 'admin') { window.location.href = '/products.html'; }
+
+    async function init() {
+      renderNavbar();
+      await loadStats();
+    }
+
+    async function loadStats() {
+      try {
+        const [productsRes, ordersRes] = await Promise.all([
+          api.getProducts(),
+          api.getOrders(),
+        ]);
+
+        const orders = ordersRes.data;
+        document.getElementById('stat-products').textContent = productsRes.total;
+        document.getElementById('stat-orders').textContent = orders.length;
+        document.getElementById('stat-completed').textContent = orders.filter(o => o.status === 'COMPLETED').length;
+        document.getElementById('stat-draft').textContent = orders.filter(o => o.status === 'DRAFT').length;
+        document.getElementById('stat-cancelled').textContent = orders.filter(o => o.status === 'CANCELLED').length;
+        document.getElementById('stat-users').textContent = '—';
+
+        // Pesanan terbaru (5)
+        const recent = orders.slice(0, 5);
+        const tbody = document.getElementById('recent-orders-body');
+        if (!recent.length) {
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:1.5rem;color:var(--text-muted)">Belum ada pesanan</td></tr>';
+        } else {
+          tbody.innerHTML = recent.map(o => `
+            <tr>
+              <td style="font-size:0.8rem"><strong>${o.order_number}</strong></td>
+              <td>${o.receiver_name}</td>
+              <td>${formatRupiah(o.total_price)}</td>
+              <td><span class="badge badge-${o.status.toLowerCase()}">${o.status}</span></td>
+            </tr>`).join('');
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

@@ -1,0 +1,91 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daftar - Sistem Reservasi Layanan</title>
+  <link rel="stylesheet" href="/css/style.v2.css">
+</head>
+<body>
+  <div class="login-wrapper">
+    <div class="card login-card">
+      <div class="login-logo">
+        <h2>Daftar Akun</h2>
+        <p>Buat akun untuk mulai memesan layanan</p>
+      </div>
+      <div class="card-body">
+        <div id="alert-area"></div>
+        <form id="register-form" novalidate>
+          <div class="form-group">
+            <label class="form-label">Nama Lengkap *</label>
+            <input type="text" id="full_name" class="form-control" placeholder="Nama lengkap Anda">
+            <div class="invalid-feedback">Nama lengkap wajib diisi.</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Username *</label>
+            <input type="text" id="username" class="form-control" placeholder="Username unik Anda">
+            <div class="invalid-feedback">Username wajib diisi.</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email *</label>
+            <input type="email" id="email" class="form-control" placeholder="email@contoh.com">
+            <div class="invalid-feedback">Email wajib diisi.</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nomor Telepon</label>
+            <input type="tel" id="phone" class="form-control" placeholder="08xxxxxxxxxx">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password *</label>
+            <input type="password" id="password" class="form-control" placeholder="Minimal 6 karakter">
+            <div class="invalid-feedback">Password wajib diisi.</div>
+          </div>
+          <button type="submit" id="reg-btn" class="btn btn-primary" style="width:100%">Daftar</button>
+        </form>
+        <p style="text-align:center;margin-top:1rem;font-size:0.85rem;color:var(--text-muted)">
+          Sudah punya akun? <a href="/login.html" style="color:var(--primary)">Masuk di sini</a>
+        </p>
+      </div>
+    </div>
+  </div>
+  <script src="/js/services/api.js"></script>
+  <script>
+    if (api.isLoggedIn()) window.location.href = '/products.html';
+
+    document.getElementById('register-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const alertArea = document.getElementById('alert-area');
+      alertArea.innerHTML = '';
+
+      const fields = ['full_name', 'username', 'email', 'password'];
+      let valid = true;
+      fields.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el.value.trim()) { el.classList.add('is-invalid'); valid = false; }
+        else el.classList.remove('is-invalid');
+      });
+      if (!valid) return;
+
+      const btn = document.getElementById('reg-btn');
+      btn.disabled = true;
+      btn.innerHTML = '<div class="spinner"></div> Memproses...';
+
+      try {
+        await api.request('POST', '/auth/register', {
+          full_name: document.getElementById('full_name').value.trim(),
+          username: document.getElementById('username').value.trim(),
+          email: document.getElementById('email').value.trim(),
+          phone: document.getElementById('phone').value.trim(),
+          password: document.getElementById('password').value,
+        });
+        alertArea.innerHTML = `<div class="alert alert-success">âœ“ Registrasi berhasil! Silakan masuk.</div>`;
+        setTimeout(() => window.location.href = '/login.html', 1500);
+      } catch (err) {
+        alertArea.innerHTML = `<div class="alert alert-danger">âš ï¸ ${err.message}</div>`;
+        btn.disabled = false;
+        btn.innerHTML = 'Daftar';
+      }
+    });
+  </script>
+</body>
+</html>

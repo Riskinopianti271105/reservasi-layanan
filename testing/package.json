@@ -1,0 +1,16 @@
+{
+  "name": "reservasi-layanan-testing",
+  "version": "1.0.0",
+  "description": "Testing automation untuk Sistem Reservasi Layanan",
+  "scripts": {
+    "cypress:open": "cypress open --config-file cypress.config.js",
+    "cypress:run": "cypress run --config-file cypress.config.js",
+    "newman": "newman run api/reservasi-api-collection.json -e api/environment.json --reporters cli,htmlextra --reporter-htmlextra-export reports/api-report.html"
+  },
+  "devDependencies": {
+    "cypress": "^13.6.0",
+    "mochawesome": "^7.1.3",
+    "mochawesome-merge": "^4.3.0",
+    "mochawesome-report-generator": "^6.2.0"
+  }
+}

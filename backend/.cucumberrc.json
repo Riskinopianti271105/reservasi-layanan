@@ -1,0 +1,8 @@
+{
+  "default": {
+    "paths": ["tests/bdd/features/**/*.feature"],
+    "require": ["tests/bdd/step-definitions/**/*.js"],
+    "format": ["progress-bar", "html:tests/bdd/reports/cucumber-report.html", "json:tests/bdd/reports/cucumber-report.json"],
+    "publishQuiet": true
+  }
+}

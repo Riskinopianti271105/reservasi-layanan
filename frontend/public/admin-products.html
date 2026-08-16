@@ -1,0 +1,317 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kelola Layanan - Admin</title>
+  <link rel="stylesheet" href="/css/style.v2.css">
+  <style>
+    .toolbar { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; margin-bottom:1rem; }
+    .toolbar-left { display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center; }
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:200; align-items:center; justify-content:center; padding:1rem; }
+    .modal-overlay.active { display:flex; }
+    .modal-box { background:var(--white); border-radius:var(--radius); box-shadow:var(--shadow-md); width:100%; max-width:520px; max-height:90vh; overflow-y:auto; }
+    .modal-header { padding:1rem 1.25rem; border-bottom:1px solid var(--border); font-weight:700; color:var(--primary-dark); display:flex; justify-content:space-between; align-items:center; background:linear-gradient(135deg,#f5f1fb,#fff); }
+    .modal-body { padding:1.25rem; }
+    .modal-footer { padding:0.75rem 1.25rem; border-top:1px solid var(--border); background:#faf8fd; display:flex; gap:0.5rem; justify-content:flex-end; }
+  </style>
+</head>
+<body>
+  <header class="navbar" id="navbar"></header>
+  <main class="container">
+    <div class="page-title">
+      <h1>📦 Kelola Layanan</h1>
+      <p>Tambah, edit, dan hapus layanan yang tersedia</p>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="toolbar">
+          <div class="toolbar-left">
+            <input type="text" id="search-input" class="form-control" placeholder="🔍 Cari layanan..." style="max-width:220px">
+            <select id="category-filter" class="form-control" style="max-width:160px">
+              <option value="">Semua Kategori</option>
+              <option value="Otomotif">Otomotif</option>
+              <option value="Elektronik">Elektronik</option>
+              <option value="Kecantikan">Kecantikan</option>
+              <option value="Kesehatan">Kesehatan</option>
+              <option value="Kreatif">Kreatif</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="openAddModal()">+ Tambah Layanan</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="table" id="products-table">
+          <thead>
+            <tr>
+              <th>ID</th><th>Nama Layanan</th><th>Kategori</th><th>Harga</th><th>Stok</th><th>Status</th><th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="products-tbody">
+            <tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted)">Memuat data...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal Form -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span id="modal-title">Tambah Layanan</span>
+        <button class="btn btn-outline btn-sm" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="modal-alert" class="alert alert-danger" style="display:none"></div>
+        <form id="product-form" novalidate>
+          <input type="hidden" id="product-id">
+          <div class="form-group">
+            <label class="form-label">Nama Layanan *</label>
+            <input type="text" id="product-name" class="form-control" placeholder="Contoh: Cuci Motor Premium">
+            <div class="invalid-feedback">Nama layanan wajib diisi.</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+            <div class="form-group">
+              <label class="form-label">Kategori *</label>
+              <select id="product-category" class="form-control">
+                <option value="">-- Pilih Kategori --</option>
+                <option value="Otomotif">Otomotif</option>
+                <option value="Elektronik">Elektronik</option>
+                <option value="Kecantikan">Kecantikan</option>
+                <option value="Kesehatan">Kesehatan</option>
+                <option value="Kreatif">Kreatif</option>
+              </select>
+              <div class="invalid-feedback">Kategori wajib dipilih.</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Stok *</label>
+              <input type="number" id="product-stock" class="form-control" placeholder="0" min="0">
+              <div class="invalid-feedback">Stok tidak valid.</div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Harga (Rp) *</label>
+            <input type="number" id="product-price" class="form-control" placeholder="0" min="1">
+            <div class="invalid-feedback">Harga harus lebih dari 0.</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Deskripsi</label>
+            <textarea id="product-description" class="form-control" rows="3" placeholder="Deskripsi layanan..."></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Gambar</label>
+            <input type="text" id="product-image" class="form-control" placeholder="Contoh: /images/cuci-motor.jpg">
+            <div style="font-size:0.78rem;color:var(--text-muted);margin-top:0.3rem">
+              Letakkan file gambar di folder <code>frontend/public/images/</code> lalu tulis nama filenya di sini.
+            </div>
+            <div id="image-preview" style="margin-top:0.6rem;display:none">
+              <img id="preview-img" src="" alt="preview" style="max-height:100px;border-radius:6px;border:1px solid var(--border)">
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal()">Batal</button>
+        <button class="btn btn-primary" id="save-btn" onclick="saveProduct()">Simpan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Konfirmasi Hapus -->
+  <div class="modal-overlay" id="delete-modal">
+    <div class="modal-box" style="max-width:380px">
+      <div class="modal-header">
+        <span>Hapus Layanan</span>
+        <button class="btn btn-outline btn-sm" onclick="closeDeleteModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p>Apakah Anda yakin ingin menghapus layanan <strong id="delete-name"></strong>?</p>
+        <p style="font-size:0.85rem;color:var(--text-muted);margin-top:0.5rem">Layanan akan dinonaktifkan dan tidak tampil di daftar layanan.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeDeleteModal()">Batal</button>
+        <button class="btn btn-danger" id="confirm-delete-btn">Ya, Hapus</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/services/api.js"></script>
+  <script>
+    if (!api.isLoggedIn()) window.location.href = '/login.html';
+    const user = api.getUser();
+    if (user?.role !== 'admin') window.location.href = '/products.html';
+
+    let allProducts = [];
+    let editingId = null;
+
+    async function init() {
+      renderNavbar();
+      await loadProducts();
+      document.getElementById('search-input').addEventListener('input', filterTable);
+      document.getElementById('category-filter').addEventListener('change', filterTable);
+      document.getElementById('product-image').addEventListener('input', (e) => updateImagePreview(e.target.value));
+    }
+
+    async function loadProducts() {
+      try {
+        const data = await api.getProducts();
+        allProducts = data.data;
+        renderTable(allProducts);
+      } catch (err) {
+        showToast('Gagal memuat data layanan: ' + err.message, 'error');
+      }
+    }
+
+    function filterTable() {
+      const search = document.getElementById('search-input').value.toLowerCase();
+      const cat = document.getElementById('category-filter').value;
+      const filtered = allProducts.filter(p =>
+        (!search || p.name.toLowerCase().includes(search) || (p.description||'').toLowerCase().includes(search)) &&
+        (!cat || p.category === cat)
+      );
+      renderTable(filtered);
+    }
+
+    function renderTable(products) {
+      const tbody = document.getElementById('products-tbody');
+      if (!products.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted)">Tidak ada layanan ditemukan</td></tr>';
+        return;
+      }
+      tbody.innerHTML = products.map(p => `
+        <tr>
+          <td style="color:var(--text-muted);font-size:0.82rem">#${p.id}</td>
+          <td>
+            <div style="font-weight:600">${p.name}</div>
+            <div style="font-size:0.78rem;color:var(--text-muted);max-width:250px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.description || '—'}</div>
+          </td>
+          <td><span class="badge badge-confirmed">${p.category}</span></td>
+          <td style="font-weight:600;color:var(--primary)">${formatRupiah(p.price)}</td>
+          <td>
+            <span style="font-weight:600;color:${p.stock === 0 ? 'var(--danger)' : p.stock <= 3 ? 'var(--warning)' : 'var(--text)'}">${p.stock}</span>
+          </td>
+          <td><span class="badge ${p.is_active ? 'badge-completed' : 'badge-cancelled'}">${p.is_active ? 'Aktif' : 'Nonaktif'}</span></td>
+          <td style="display:flex;gap:0.4rem">
+            <button class="btn btn-outline btn-sm" onclick="openEditModal(${p.id})">✏️ Edit</button>
+            <button class="btn btn-danger btn-sm" onclick="openDeleteModal(${p.id}, '${p.name.replace(/'/g,"\\'")}')">🗑️</button>
+          </td>
+        </tr>`).join('');
+    }
+
+    function openAddModal() {
+      editingId = null;
+      document.getElementById('modal-title').textContent = '+ Tambah Layanan Baru';
+      document.getElementById('product-form').reset();
+      document.getElementById('product-id').value = '';
+      document.getElementById('product-image').value = '';
+      document.getElementById('image-preview').style.display = 'none';
+      document.getElementById('modal-alert').style.display = 'none';
+      document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+      document.getElementById('modal-overlay').classList.add('active');
+    }
+
+    function openEditModal(id) {
+      const p = allProducts.find(x => x.id === id);
+      if (!p) return;
+      editingId = id;
+      document.getElementById('modal-title').textContent = '✏️ Edit Layanan';
+      document.getElementById('product-id').value = p.id;
+      document.getElementById('product-name').value = p.name;
+      document.getElementById('product-category').value = p.category;
+      document.getElementById('product-price').value = p.price;
+      document.getElementById('product-stock').value = p.stock;
+      document.getElementById('product-description').value = p.description || '';
+      document.getElementById('product-image').value = p.image_url || '';
+      updateImagePreview(p.image_url || '');
+      document.getElementById('modal-alert').style.display = 'none';
+      document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+      document.getElementById('modal-overlay').classList.add('active');
+    }
+
+    function closeModal() {
+      document.getElementById('modal-overlay').classList.remove('active');
+      editingId = null;
+    }
+
+    function updateImagePreview(url) {
+      const preview = document.getElementById('image-preview');
+      const img = document.getElementById('preview-img');
+      if (url && url.trim()) {
+        img.src = url.trim();
+        preview.style.display = 'block';
+      } else {
+        preview.style.display = 'none';
+      }
+    }
+
+    async function saveProduct() {
+      const name = document.getElementById('product-name').value.trim();
+      const category = document.getElementById('product-category').value;
+      const price = parseFloat(document.getElementById('product-price').value);
+      const stock = parseInt(document.getElementById('product-stock').value);
+      const description = document.getElementById('product-description').value.trim();
+      const image_url = document.getElementById('product-image').value.trim();
+      const alertEl = document.getElementById('modal-alert');
+      alertEl.style.display = 'none';
+
+      let valid = true;
+      if (!name) { document.getElementById('product-name').classList.add('is-invalid'); valid = false; }
+      else document.getElementById('product-name').classList.remove('is-invalid');
+      if (!category) { document.getElementById('product-category').classList.add('is-invalid'); valid = false; }
+      else document.getElementById('product-category').classList.remove('is-invalid');
+      if (!price || price <= 0) { document.getElementById('product-price').classList.add('is-invalid'); valid = false; }
+      else document.getElementById('product-price').classList.remove('is-invalid');
+      if (isNaN(stock) || stock < 0) { document.getElementById('product-stock').classList.add('is-invalid'); valid = false; }
+      else document.getElementById('product-stock').classList.remove('is-invalid');
+      if (!valid) return;
+
+      const btn = document.getElementById('save-btn');
+      btn.disabled = true; btn.innerHTML = '<div class="spinner"></div>';
+
+      try {
+        const body = { name, category, price, stock, description, image_url };
+        if (editingId) {
+          await api.updateProduct(editingId, body);
+          showToast('Layanan berhasil diperbarui!');
+        } else {
+          await api.createProduct(body);
+          showToast('Layanan berhasil ditambahkan!');
+        }
+        closeModal();
+        await loadProducts();
+      } catch (err) {
+        alertEl.textContent = err.message;
+        alertEl.style.display = 'flex';
+      } finally {
+        btn.disabled = false; btn.innerHTML = 'Simpan';
+      }
+    }
+
+    let deleteTargetId = null;
+    function openDeleteModal(id, name) {
+      deleteTargetId = id;
+      document.getElementById('delete-name').textContent = name;
+      document.getElementById('delete-modal').classList.add('active');
+      document.getElementById('confirm-delete-btn').onclick = async () => {
+        try {
+          await api.deleteProduct(deleteTargetId);
+          showToast('Layanan berhasil dihapus.');
+          closeDeleteModal();
+          await loadProducts();
+        } catch (err) {
+          showToast(err.message, 'error');
+        }
+      };
+    }
+
+    function closeDeleteModal() {
+      document.getElementById('delete-modal').classList.remove('active');
+      deleteTargetId = null;
+    }
+
+    init();
+  </script>
+</body>
+</html>

@@ -1,0 +1,94 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: reservasi_db
+    environment:
+      POSTGRES_DB: reservasi_db
+      POSTGRES_USER: reservasi_user
+      POSTGRES_PASSWORD: reservasi_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/src/config/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - reservasi_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reservasi_user -d reservasi_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: reservasi_backend
+    environment:
+      NODE_ENV: development
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: reservasi_db
+      DB_USER: reservasi_user
+      DB_PASSWORD: reservasi_pass
+      JWT_SECRET: rahasia_jwt_reservasi_2025
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - reservasi_net
+    command: npm run dev
+
+  frontend:
+    image: nginx:alpine
+    container_name: reservasi_frontend
+    ports:
+      - "8081:80"
+    volumes:
+      - ./frontend/public:/usr/share/nginx/html
+      - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - backend
+    networks:
+      - reservasi_net
+
+  cypress:
+    image: cypress/included:13.6.0
+    container_name: reservasi_cypress
+    depends_on:
+      - frontend
+      - backend
+    environment:
+      CYPRESS_BASE_URL: http://frontend:80
+    working_dir: /e2e
+    volumes:
+      - ./testing:/e2e
+    networks:
+      - reservasi_net
+    profiles:
+      - testing
+
+  newman:
+    image: postman/newman:alpine
+    container_name: reservasi_newman
+    volumes:
+      - ./testing/api:/etc/newman
+    networks:
+      - reservasi_net
+    profiles:
+      - testing
+
+volumes:
+  postgres_data:
+
+networks:
+  reservasi_net:
+    driver: bridge

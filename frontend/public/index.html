@@ -1,0 +1,22 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="refresh" content="0; url=/login.html">
+  <title>Sistem Reservasi Layanan</title>
+  <link rel="stylesheet" href="/css/style.v2.css">
+</head>
+<body>
+  <script src="/js/services/api.js"></script>
+  <script>
+    // Jika sudah login, langsung ke halaman produk
+    // Jika belum, ke halaman login
+    if (api.isLoggedIn()) {
+      const user = api.getUser();
+      window.location.href = user?.role === 'admin' ? '/admin-dashboard.html' : '/products.html';
+    } else {
+      window.location.href = '/login.html';
+    }
+  </script>
+</body>
+</html>

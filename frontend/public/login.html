@@ -1,0 +1,96 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Masuk - Sistem Reservasi Layanan</title>
+  <link rel="stylesheet" href="/css/style.v2.css">
+</head>
+<body>
+  <div class="login-wrapper">
+    <div class="card login-card">
+      <div class="login-logo">
+        <h2>ReservasiLayanan</h2>
+        <p>Sistem Reservasi Layanan Online</p>
+      </div>
+      <div class="card-body">
+        <div id="alert-area"></div>
+        <form id="login-form" novalidate>
+          <div class="form-group">
+            <label class="form-label" for="username">Username atau Email</label>
+            <input type="text" id="username" name="username" class="form-control" 
+                   placeholder="Masukkan username atau email" data-testid="username-input">
+            <div class="invalid-feedback" id="username-error">Username/email wajib diisi.</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="password">Password</label>
+            <input type="password" id="password" name="password" class="form-control"
+                   placeholder="Masukkan password" data-testid="password-input">
+            <div class="invalid-feedback" id="password-error">Password wajib diisi.</div>
+          </div>
+          <button type="submit" id="login-btn" class="btn btn-primary" style="width:100%" data-testid="login-button">
+            Masuk
+          </button>
+        </form>
+        <p style="text-align:center;margin-top:1rem;font-size:0.85rem;color:var(--text-muted)">
+          Belum punya akun? <a href="/register.html" style="color:var(--primary)">Daftar di sini</a>
+        </p>
+        <div style="margin-top:1rem;padding:0.75rem;background:var(--bg);border-radius:var(--radius);font-size:0.8rem;color:var(--text-muted)">
+          <strong>Demo:</strong> admin / password | user1 / password
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/services/api.js"></script>
+  <script>
+    // Redirect jika sudah login
+    if (api.isLoggedIn()) window.location.href = '/products.html';
+
+    const form = document.getElementById('login-form');
+    const alertArea = document.getElementById('alert-area');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      alertArea.innerHTML = '';
+
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      let valid = true;
+
+      // Validasi
+      if (!username) {
+        document.getElementById('username').classList.add('is-invalid');
+        valid = false;
+      } else {
+        document.getElementById('username').classList.remove('is-invalid');
+      }
+
+      if (!password) {
+        document.getElementById('password').classList.add('is-invalid');
+        valid = false;
+      } else {
+        document.getElementById('password').classList.remove('is-invalid');
+      }
+
+      if (!valid) return;
+
+      const btn = document.getElementById('login-btn');
+      btn.disabled = true;
+      btn.innerHTML = '<div class="spinner"></div> Memproses...';
+
+      try {
+        await api.login(username, password);
+        const loggedUser = api.getUser();
+        const redirect = loggedUser?.role === 'admin' ? '/admin-dashboard.html' : '/products.html';
+        showToast('Login berhasil! Selamat datang.', 'success');
+        setTimeout(() => window.location.href = redirect, 800);
+      } catch (err) {
+        alertArea.innerHTML = `<div class="alert alert-danger" data-testid="error-message">âš ï¸ ${err.message}</div>`;
+        btn.disabled = false;
+        btn.innerHTML = 'Masuk';
+      }
+    });
+  </script>
+</body>
+</html>
